@@ -1,3 +1,5 @@
+# imports incessary libarries
+
 import requests
 from bs4 import BeautifulSoup
 import os
@@ -14,6 +16,7 @@ import schedule
 import time
 import sched
 import os, os.path
+
 
 # uses link_list to get email addresses
 regex = re.compile(("([a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`"
@@ -141,34 +144,20 @@ def get_links(url):
 
 
 def spider2():
-
-
-
     global spider_function
     spider_function = True
     global main_count
-
     link_list = []
     url = ""
-
-
     # put all of links we will use to grad email addresses from in the link_list list
 
     # url = 'http://www.' + url_part + '.com'
     url = 'https://www.indeed.ca/software-jobs-in-london'
     print url
     url_part = ""
-    try:
-        link_list = get_links(url)
-
-    except:
-        print "THERE WAS AN ERROR"
-
-        link_list = []
-
+    link_list = get_links(url)
     new_link_list = []
     zz = 0
-
     set_list = set(link_list)
     reduced_list = list(set_list)
 
@@ -197,4 +186,111 @@ def spider2():
 
 
 
-spider2()
+
+def create_link_list(page_list):
+    link_list = []
+    for link in page_list:
+        source_code = get_source_code(link)
+        print "here 1111"
+        for item in source_code.findAll('a', { "class" : "turnstileLink" }):
+            href = item.get('href')
+            if href.startswith('http'):
+                job_page = get_source_code(href)
+                link_list.append(href)
+                print "exit"
+                return "exit"
+                # print "starts with http **************"
+            elif href.startswith('/'):
+                new_item = "https://www.indeed.ca" + href
+                job_page = get_source_code(new_item)
+                if job_page.findAll('a', { "class" : "save-job-link" }):
+                    print "***** THIS IS AN INDEED PAGE ***** "
+                    #below put code to past a resume and fill out the survey
+                else:
+                    print "NOT INDEED PAGE"
+                # print new_item + "*****************************"
+
+
+
+
+
+
+# indeed-apply-iframe-holder
+
+def create_page_list(number_of_pages):
+    i = 0
+    list_of_links = []
+
+    while i < number_of_pages:
+        link = create_url(title_and_city[0], title_and_city[1], str(i * 20))
+        list_of_links.append(link)
+        i = i + 1
+    print len(list_of_links)
+    return list_of_links
+
+def calculate_pages(number_of_jobs):
+    return number_of_jobs / 20
+
+
+
+def get_number_of_jobs_in_source_code(source_code):
+    #this searches the page for a div with an id of "searchCount"
+    div = str(source_code.find_all('div', { "id" : "searchCount" }))
+    print div
+    #this regex grabs all numbers above 30
+    regex = r"([3-9][0-9]+|\d{3,})"
+    #this uses the regex and the string provided with the div to
+    #find a match. If there is a match, we take the string from the
+    #match object and save it to a variable
+
+    match = re.search(regex, div)
+    if match:
+        number = str(("{}".format(match.group(0))))
+        print number
+        return int(number)
+    else:
+        print "FAILED TO FIND A MATCH ------ INDEED HAS CHANGED SOMETHING!"
+
+
+
+def get_source_code(url):
+    print "opening " + url
+    res = urllib2.urlopen(url)
+    html_code = res.read()
+    soup = BeautifulSoup(html_code, "lxml")
+    return soup
+
+def create_url(title, city, job_number):
+    url = "https://www.indeed.ca/jobs?q=" + title +"&l=" + city + "&start=" + job_number
+    return url
+
+def get_title_and_city():
+    title = "engineer"
+    city = "toronto"
+    # title = raw_input('Enter the position you want ')
+    # city = raw_input('Enter the city to search in ')
+    title_and_city = []
+    title_and_city.append(title)
+    title_and_city.append(city)
+    return title_and_city
+
+# This gets the title and city name from a user
+title_and_city = get_title_and_city()
+
+#create a url with the title and city name
+url = create_url(title_and_city[0], title_and_city[1], "0")
+
+#gets source code.... accepts a url as input
+source_code = get_source_code(url)
+
+# Search source code for number of jobs on page ----> returns integer
+number_of_jobs = get_number_of_jobs_in_source_code(source_code)
+
+#calculate how many pages there are (accepts number of jobs from search)
+number_of_pages = calculate_pages(number_of_jobs)
+
+# create a list of links based upon the number of pages and number of jobs
+page_list = create_page_list(number_of_pages)
+
+# Visit each link in the page_list and create a master list of links
+link_list = create_link_list(page_list)
